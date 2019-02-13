@@ -1,7 +1,8 @@
 # Class representing a place
 class Place
   attr_accessor :id, :formatted_address, :location, :address_components
-  def initialize(_id:, address_components:, formatted_address:, geometry:)
+  def initialize(params)
+    _id, address_components, formatted_address, geometry = params.values_at(:_id, :address_components, :formatted_address, :geometry)
     @id = (_id.is_a? BSON::ObjectId) ? _id.to_s : _id
     @address_components = address_components.map { |a| AddressComponent.new(a) }
     @formatted_address = formatted_address
