@@ -33,4 +33,9 @@ class Place
   def self.to_places(mg_coll)
     mg_coll.map { |doc| new(doc) }
   end
+
+  def self.find(s)
+    id = BSON::ObjectId.from_string s
+    new(collection.find(_id: id).first)
+  end
 end
