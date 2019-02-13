@@ -38,4 +38,8 @@ class Place
     id = BSON::ObjectId.from_string s
     new(collection.find(_id: id).first)
   end
+
+  def self.all(offset = 0, limit = 0)
+    collection.find.skip(offset).limit(limit).map { |doc| new(doc) }
+  end
 end
