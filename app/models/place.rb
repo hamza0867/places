@@ -21,4 +21,8 @@ class Place
     data = JSON.parse json_string
     collection.insert_many data
   end
+
+  def self.find_by_short_name(s)
+    collection.find("address_components.short_name": s)
+  end
 end
