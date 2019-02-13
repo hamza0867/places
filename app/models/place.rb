@@ -2,7 +2,10 @@
 class Place
   attr_accessor :id, :formatted_address, :location, :address_components
   def initialize(params)
-    _id, address_components, formatted_address, geometry = params.values_at(:_id, :address_components, :formatted_address, :geometry)
+    _id = params[:_id]
+    address_components = params[:address_components]
+    formatted_address = params[:formatted_address]
+    geometry = params[:geometry]
     @id = (_id.is_a? BSON::ObjectId) ? _id.to_s : _id
     @address_components = address_components.map { |a| AddressComponent.new(a) }
     @formatted_address = formatted_address
@@ -25,5 +28,9 @@ class Place
 
   def self.find_by_short_name(s)
     collection.find("address_components.short_name": s)
+  end
+
+  def self.to_places(mg_coll)
+    mg_coll.map { |doc| new(doc) }
   end
 end
