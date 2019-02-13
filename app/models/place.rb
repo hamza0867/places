@@ -44,6 +44,19 @@ class Place
     collection.find.skip(offset).limit(limit).map { |doc| new(doc) }
   end
 
+  def self.get_address_components(sort = nil, offset = nil, limit = nil)
+    pipeline = []
+    pipeline << { '$unwind' => '$address_components' }
+    pipeline << { '$project' => { '_id' => 1,\
+                                  'address_components' => 1,\
+                                  'formatted_address' => 1,\
+                                  'geometry.geolocation' => 1 } }
+    (pipeline << { '$sort' => sort }) if sort
+    (pipeline << { '$skip' => offset }) if offset
+    (pipeline << { '$limit' => limit }) if limit
+    collection.find.aggregate(pipeline)
+  end
+
   def destroy
     self.class.collection.delete_one(_id: BSON::ObjectId.from_string(@id))
   end
