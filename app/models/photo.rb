@@ -23,7 +23,7 @@ class Photo
 
   def self.find(id)
     doc = mongo_client.database.fs.find(_id: BSON::ObjectId.from_string(id)).first
-    new(doc)
+    new(doc) unless doc.nil?
   end
 
   def persisted?
@@ -51,5 +51,9 @@ class Photo
       @contents.rewind
       @id = Photo.mongo_client.database.fs.insert_one(grid_file).to_s
     end
+  end
+
+  def destroy
+    Photo.mongo_client.database.fs.delete(BSON::ObjectId.from_string(@id))
   end
 end
