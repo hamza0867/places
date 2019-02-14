@@ -56,4 +56,9 @@ class Photo
   def destroy
     Photo.mongo_client.database.fs.delete(BSON::ObjectId.from_string(@id))
   end
+
+  def find_nearest_place_id(max_meters)
+    res = Place.near(@location, max_meters).limit(1).projection(_id: 1).first[:_id]
+    res || nil
+  end
 end
