@@ -14,6 +14,13 @@ class Photo
     Mongoid::Clients.default
   end
 
+  def self.all(offset = nil, limit = nil)
+    res = mongo_client.database.fs.find
+    res = res.skip(offset) if offset
+    res = res.limit(limit) if limit
+    res.map { |doc| new(doc) }
+  end
+
   def persisted?
     !@id.nil?
   end
@@ -25,6 +32,7 @@ class Photo
       description = {}
       description[:content_type] = 'image/jpeg'
       description[:metadata] = { 'location' => @location.to_hash }
+      @contents.rewind
       grid_file = Mongo::Grid::File.new(@contents.read, description)
       @id = Photo.mongo_client.database.fs.insert_one(grid_file).to_s
     end
