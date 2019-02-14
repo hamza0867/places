@@ -30,6 +30,15 @@ class Photo
     !@id.nil?
   end
 
+  def contents
+    stored_file = Photo.mongo_client.database.fs.find_one(_id: BSON::ObjectId.from_string(@id))
+    if stored_file
+      buffer = ''
+      stored_file.chunks.reduce([]) { |_x, chunk| buffer << chunk.data.data }
+      buffer
+    end
+  end
+
   def save
     unless persisted?
       gps = EXIFR::JPEG.new(@contents).gps
@@ -39,6 +48,7 @@ class Photo
       description[:metadata] = { 'location' => @location.to_hash }
       @contents.rewind
       grid_file = Mongo::Grid::File.new(@contents.read, description)
+      @contents.rewind
       @id = Photo.mongo_client.database.fs.insert_one(grid_file).to_s
     end
   end
