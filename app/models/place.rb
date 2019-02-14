@@ -75,6 +75,14 @@ class Place
     collection.aggregate(pipeline).map { |doc| doc[:_id].to_s }
   end
 
+  def self.create_indexes
+    collection.indexes.create_one('geometry.geolocation' => Mongo::Index::GEO2DSPHERE)
+  end
+
+  def self.remove_indexes
+    collection.indexes.drop_one('geometry.geolocation_2dsphere')
+  end
+
   def destroy
     self.class.collection.delete_one(_id: BSON::ObjectId.from_string(@id))
   end
