@@ -83,6 +83,14 @@ class Place
     collection.indexes.drop_one('geometry.geolocation_2dsphere')
   end
 
+  def self.near(point, max_meters = nil)
+    near = { '$geometry' => point.to_hash }
+    near['$maxDistance'] = max_meters unless max_meters.nil?
+    collection.find('geometry.geolocation' => {
+                      '$near' => near
+                    })
+  end
+
   def destroy
     self.class.collection.delete_one(_id: BSON::ObjectId.from_string(@id))
   end
