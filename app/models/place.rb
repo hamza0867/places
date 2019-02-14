@@ -54,7 +54,18 @@ class Place
     (pipeline << { '$sort' => sort }) if sort
     (pipeline << { '$skip' => offset }) if offset
     (pipeline << { '$limit' => limit }) if limit
-    collection.find.aggregate(pipeline)
+    collection.aggregate(pipeline)
+  end
+
+  def self.get_country_names
+    pipeline = []
+    pipeline << { '$project' => { '_id' => 0,\
+                                  'address_components.long_name' => 1,\
+                                  'address_components.types' => 1 } }
+    pipeline << { '$unwind' =>  '$address_components' }
+    pipeline << { '$match' => { 'address_components.types' => 'country' } }
+    pipeline << { '$group' => { '_id' => '$address_components.long_name' } }
+    collection.aggregate(pipeline).to_a.map { |h| h[:_id] }
   end
 
   def destroy
