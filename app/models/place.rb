@@ -68,6 +68,13 @@ class Place
     collection.aggregate(pipeline).to_a.map { |h| h[:_id] }
   end
 
+  def self.find_ids_by_country_code(country_code)
+    pipeline = []
+    pipeline << { '$match' => { 'address_components.short_name' => country_code } }
+    pipeline << { '$project' => { '_id' => 1 } }
+    collection.aggregate(pipeline).map { |doc| doc[:_id].to_s }
+  end
+
   def destroy
     self.class.collection.delete_one(_id: BSON::ObjectId.from_string(@id))
   end
