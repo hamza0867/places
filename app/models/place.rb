@@ -99,4 +99,9 @@ class Place
     res = Place.near(@location.to_hash, max_meters)
     Place.to_places(res)
   end
+
+  def photos(offset = 0, limit = 0)
+    Photo.find_photos_for_place(@id).skip(offset)
+         .limit(limit).map { |doc| Photo.new(doc) }
+  end
 end
