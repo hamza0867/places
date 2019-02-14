@@ -7,6 +7,7 @@ class Photo
     unless doc.nil?
       @id = doc[:_id].to_s if doc[:_id]
       @location = Point.new(doc[:metadata][:location]) if doc[:metadata] && doc[:metadata][:location]
+      @place = doc[:metadata][:place] if doc[:metadata] && doc[:metadata][:place]
     end
   end
 
@@ -44,6 +45,7 @@ class Photo
       docs = Photo.mongo_client.database.fs.find(_id: BSON::ObjectId.from_string(@id))
       metadata = docs.first[:metadata]
       metadata[:location] = @location.to_hash
+      metadata[:place] = @place
       docs.update_one('metadata' => metadata)
     else
       gps = EXIFR::JPEG.new(@contents).gps
@@ -65,5 +67,16 @@ class Photo
   def find_nearest_place_id(max_meters)
     res = Place.near(@location, max_meters).limit(1).projection(_id: 1).first[:_id]
     res || nil
+  end
+
+  def place
+    @place ? Place.find(@place.to_s) : nil
+  end
+
+  def place=(param)
+    @place = param if param.is_a? BSON::ObjectId
+    @place = BSON::ObjectId.from_string(param) if param.is_a? String
+    @place = param.id if param.is_a? Place
+    @place = param if param.nil?
   end
 end
