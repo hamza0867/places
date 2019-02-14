@@ -7,7 +7,7 @@ class Place
     formatted_address = params[:formatted_address]
     geometry = params[:geometry]
     @id = (_id.is_a? BSON::ObjectId) ? _id.to_s : _id
-    @address_components = address_components.map { |a| AddressComponent.new(a) }
+    @address_components = address_components.map { |a| AddressComponent.new(a) } unless address_components.nil?
     @formatted_address = formatted_address
     @location = Point.new(geometry[:geolocation])
   end
@@ -93,5 +93,10 @@ class Place
 
   def destroy
     self.class.collection.delete_one(_id: BSON::ObjectId.from_string(@id))
+  end
+
+  def near(max_meters = nil)
+    res = Place.near(@location.to_hash, max_meters)
+    Place.to_places(res)
   end
 end
