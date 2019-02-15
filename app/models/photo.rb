@@ -86,4 +86,9 @@ class Photo
     @place = BSON::ObjectId.from_string(place.id) if place.is_a?(Place)
     @place = nil if place.nil?
   end
+
+  def self.find_photos_for_place(place_id)
+    id_criteria = place_id.is_a?(BSON::ObjectId) ? place_id : BSON::ObjectId.from_string(place_id)
+    mongo_client.database.fs.find('metadata.place' => id_criteria)
+  end
 end
