@@ -3,11 +3,11 @@ class Photo
   attr_accessor :id, :location
   attr_writer :contents
 
-  def initialize(doc = nil)
-    unless doc.nil?
-      @id = doc[:_id].to_s if doc[:_id]
-      @location = Point.new(doc[:metadata][:location]) if doc[:metadata] && doc[:metadata][:location]
-      @place = doc[:metadata][:place] if doc[:metadata] && doc[:metadata][:place]
+  def initialize(params = nil)
+    unless params.nil?
+      @id = params[:_id].to_s if params[:_id]
+      @location = Point.new(params[:metadata][:location]) if params[:metadata] && params[:metadata][:location]
+      @place = params[:metadata][:place] if params[:metadata] && params[:metadata][:place]
     end
   end
 
@@ -15,73 +15,75 @@ class Photo
     Mongoid::Clients.default
   end
 
-  def self.all(offset = nil, limit = nil)
-    res = mongo_client.database.fs.find
-    res = res.skip(offset) if offset
-    res = res.limit(limit) if limit
-    res.map { |doc| new(doc) }
-  end
-
-  def self.find(id)
-    doc = mongo_client.database.fs.find(_id: BSON::ObjectId.from_string(id)).first
-    new(doc) unless doc.nil?
-  end
-
-  def self.find_photos_for_place(place_id)
-    id = (place_id.is_a? BSON::ObjectId) ? place_id.to_s : place_id
-    mongo_client.database.fs.find('metadata.place' => id)
-  end
-
   def persisted?
     !@id.nil?
   end
 
-  def contents
-    stored_file = Photo.mongo_client.database.fs.find_one(_id: BSON::ObjectId.from_string(@id))
-    if stored_file
-      buffer = ''
-      stored_file.chunks.reduce([]) { |_x, chunk| buffer << chunk.data.data }
-      buffer
-    end
-  end
-
   def save
     if persisted?
-      docs = Photo.mongo_client.database.fs.find(_id: BSON::ObjectId.from_string(@id))
-      metadata = docs.first[:metadata]
-      metadata[:location] = @location.to_hash
-      metadata[:place] = @place
-      docs.update_one('metadata' => metadata)
+      doc = self.class.mongo_client.database.fs.find(
+        '_id': BSON::ObjectId.from_string(@id)
+      ).first
+      doc[:metadata][:place] = @place
+      doc[:metadata][:location] = @location.to_hash
+      self.class.mongo_client.database.fs.find(
+        '_id': BSON::ObjectId.from_string(@id)
+      ).update_one(doc)
     else
       gps = EXIFR::JPEG.new(@contents).gps
       @location = Point.new(lng: gps.longitude, lat: gps.latitude)
-      description = {}
-      description[:content_type] = 'image/jpeg'
-      description[:metadata] = { 'location' => @location.to_hash }
       @contents.rewind
+      description = {}
+      description[:metadata] = {
+        location: location.to_hash,
+        place: @place
+      }
+      description[:content_type] = 'image/jpeg'
       grid_file = Mongo::Grid::File.new(@contents.read, description)
       @contents.rewind
-      @id = Photo.mongo_client.database.fs.insert_one(grid_file).to_s
+      @id = self.class.mongo_client.database.fs.insert_one(grid_file).to_s
     end
   end
 
+  def self.all(offset = 0, limit = 0)
+    mongo_client.database.fs.find.skip(offset).limit(limit)
+                .map { |doc| new(doc) }
+  end
+
+  def self.find(id)
+    id_criteria = BSON::ObjectId.from_string id
+    doc = mongo_client.database.fs.find(_id: id_criteria).first
+    doc.nil? ? nil : new(doc)
+  end
+
+  def contents
+    f = self.class.mongo_client.database.fs.find_one(_id: BSON::ObjectId.from_string(@id))
+    buffer = ''
+    if f
+      f.chunks.reduce([]) do |_x, chunk|
+        buffer << chunk.data.data
+      end
+    end
+    buffer
+  end
+
   def destroy
-    Photo.mongo_client.database.fs.delete(BSON::ObjectId.from_string(@id))
+    self.class.mongo_client.database.fs.find(_id: BSON::ObjectId.from_string(@id)).delete_one
   end
 
   def find_nearest_place_id(max_meters)
-    res = Place.near(@location, max_meters).limit(1).projection(_id: 1).first[:_id]
-    res || nil
+    Place.near(@location, max_meters).limit(1)
+         .projection(_id: 1).first[:_id]
   end
 
   def place
-    @place ? Place.find(@place.to_s) : nil
+    @place.nil? ? nil : Place.find(@place.to_s)
   end
 
-  def place=(param)
-    @place = param if param.is_a? BSON::ObjectId
-    @place = BSON::ObjectId.from_string(param) if param.is_a? String
-    @place = param.id if param.is_a? Place
-    @place = param if param.nil?
+  def place=(place)
+    @place = place if place.is_a?(BSON::ObjectId)
+    @place = BSON::ObjectId.from_string(place) if place.is_a?(String)
+    @place = BSON::ObjectId.from_string(place.id) if place.is_a?(Place)
+    @place = nil if place.nil?
   end
 end
